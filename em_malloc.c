@@ -3,35 +3,12 @@
 #include <string.h>
 #include "em_malloc.h"
 
-#define _HEAP_HEAD  0x20000000
-#define _HEAP_SIZE  0x00018000  /* 96kB */
-
-#define _BLK_SIZE   64 
-
-#define _STS_BITS   2     /* 00:free, 01:use(cont.), 11:use(term.) */
-#define _STS_BLKS   (8 / _STS_BITS)
-
 /*
   b0-1 status #0  (offset 0x0000)
   b2-3 status #1  (offset 0x0020)
   b4-5 status #2  (offset 0x0040)
   b6-7 status #3  (offset 0x0060)
 */
-
-#define _STS_USED   0x01
-#define _STS_TERM   0x03
-#define _STS_MASK   0x03
-
-#define _MASK_USED  0x55
-#define _MASK_TERM  0xaa
-
-#define _MAX_BLKS     (_HEAP_SIZE / _BLK_SIZE)
-#define _USE_MAP_SIZE (_MAX_BLKS / _STS_BLKS)
-
-#define _MEM_BLKS(sz) (((sz) + _BLK_SIZE - 1) / _BLK_SIZE)
-
-#define PTR2IDX(p)  ((uint32_t)((uint8_t*)(p) - em_state.blk_head) / _BLK_SIZE)
-#define IDX2PTR(i)  (&(em_state.blk_head[(i) * _BLK_SIZE]))
 
 static const uint8_t _use_map_mask[] = {_STS_MASK, _STS_MASK<<2, _STS_MASK<<4, _STS_MASK<<6};
 static const uint8_t _use_map_used[] = {_STS_USED, _STS_USED<<2, _STS_USED<<4, _STS_USED<<6};
@@ -71,10 +48,11 @@ em_set_used(uint32_t head, uint32_t blks)
   }
   /* 最終メモリブロックは終端設定する */
   em_state.use_map[mapidx] |= _use_map_term[mapblk++];
+  em_state.usecnt++;
 
   /* 先頭空きブロックの更新 */
   if (em_state.head >= head) {
-    for (idx=head+blks; idx<=_MAX_BLKS; idx++) {
+    for (idx=head+blks; idx<_MAX_BLKS; idx++) {
       /* 先頭空きブロックを検索する */
       mapidx = idx / _STS_BLKS;
       mapblk = idx % _STS_BLKS;
@@ -83,6 +61,9 @@ em_set_used(uint32_t head, uint32_t blks)
       }
     }
     em_state.head = idx;
+    if (idx == _MAX_BLKS) {
+      puts("em_set_used: Out of memory!");
+    }
   }
 }
 
@@ -92,26 +73,38 @@ em_find_free_blocks(uint32_t head, uint32_t blks)
   uint32_t mapidx;
   uint32_t mapblk;
   uint32_t idx;
-  uint32_t cnt;
+  uint32_t cnt = 0;
+
+#ifdef EMDEBUG
+  printf("em_find_free_blocks(%08lx, %d) : ", head, blks);
+#endif
 
   for (idx=head; idx<_MAX_BLKS; idx++) {
     mapidx = idx / _STS_BLKS;
     mapblk = idx % _STS_BLKS;
-
-// printf("em_find_free_blocks : head=%08lx, idx=0x%08lx : ", head, idx);
     
     if ((em_state.use_map[mapidx] & _use_map_mask[mapblk]) == 0) {
-// printf("free\n");
+#ifdef EMDEBUG
+      printf("o", mapidx*4+mapblk, cnt);
+#endif
       if (cnt == 0) {
         head = idx;
+#ifdef EMDEBUG
+        printf("\nem_find_free_blocks(%08lx, %d) : ", head, blks);
+#endif
       }
       cnt++;
       if (cnt >= blks) {
+#ifdef EMDEBUG
+        puts("");
+#endif
         return head;
       }
     }
     else {
-// printf("used\n");
+#ifdef EMDEBUG
+      printf("x");
+#endif
       cnt = 0;
     }
   }
@@ -127,7 +120,9 @@ em_search_free(uint32_t blks)
 // printf("em_search_free(%d) : head=0x%08lx\n", blks, head);
 
   if (head >= _MAX_BLKS) {
-puts("em_search_free: Out of memory!");
+#ifdef EMDEBUG
+    puts("em_search_free: Out of memory!");
+#endif
     return NULL;  /* No free block */
   }
 
@@ -137,7 +132,10 @@ puts("em_search_free: Out of memory!");
   }
 
   /* check free area */
-  if (head >= _USE_MAP_SIZE) {
+  if (head >= _MAX_BLKS) {
+#ifdef EMDEBUG
+    puts("em_search_free: Out of memory!");
+#endif
     return NULL;
   }
 
@@ -149,12 +147,16 @@ em_malloc(uint32_t blks)
 {
   /* find free blocks */
   uint8_t *mem = em_search_free(blks);
-  
+
   /* change use_map status to used */
   if (mem) {
     em_set_used(PTR2IDX(mem), blks);
   }
-
+#ifdef EMDEBUG
+  else {
+    puts("em_malloc: Out of memory!");
+  }
+#endif
   return mem;
 }
 
@@ -242,28 +244,39 @@ em_realloc(void *p, size_t len)
 
   /* free */
   if (len == 0) {
-printf("free(0x%08lx) : ", p);
+#ifdef EMDEBUG
+    printf("free(0x%08lx) : ", p);
+#endif
     em_free(p);
-printf("usecnt=%d\n", em_state.usecnt);
+#ifdef EMDEBUG
+    printf("usecnt=%d\n", em_state.usecnt);
+#endif
     return NULL;
   }
 
   /* malloc */
   if (p == NULL) {
-printf("malloc(%d) : ", len);
+#ifdef EMDEBUG
+    printf("malloc(%d) => ", len);
+#endif
     p = em_malloc(blks);
-printf("usecnt=%d\n", em_state.usecnt);
+#ifdef EMDEBUG
+    printf("%08lx : usecnt=%d\n", p, em_state.usecnt);
+#endif
     return p;
   }
 
   /* realloc */
   used_blks = em_get_used_blocks(p);
 
-printf("realloc(0x%08lx, %d) : ", p, len);
-// printf("realloc: %d -> %d\n", used_blks, blks);
+#ifdef EMDEBUG
+  printf("realloc(0x%08lx, %d) => ", p, len);
+#endif
   /* not change */
   if (used_blks == blks) {
-printf("usecnt=%d\n", em_state.usecnt);
+#ifdef EMDEBUG
+    printf("%08lx : usecnt=%d\n", p, em_state.usecnt);
+#endif
     return p;
   }
 
@@ -275,7 +288,9 @@ printf("usecnt=%d\n", em_state.usecnt);
     blkidx--;
     /* modify termination */
     em_state.use_map[blkidx / _STS_BLKS] |= _use_map_term[blkidx % _STS_BLKS];
-printf("usecnt=%d\n", em_state.usecnt);
+#ifdef EMDEBUG
+    printf("%08lx : usecnt=%d\n", p, em_state.usecnt);
+#endif
     return p;
   }
 
@@ -290,7 +305,9 @@ printf("usecnt=%d\n", em_state.usecnt);
     puts("em_realloc: Out of memory!");
   }
   em_free(p);
-printf("usecnt=%d\n", em_state.usecnt);
+#ifdef EMDEBUG
+  printf("%08lx : usecnt=%d\n", p, em_state.usecnt);
+#endif
   return exp;
 }
 
@@ -302,3 +319,38 @@ em_mallocf(mrb_state *mrb, void *p, size_t len, void *ud)
 {
   return em_realloc(p, len);
 }
+
+void
+em_show_status(void)
+{
+  printf("head=%08lx, use=%d/%d\n", em_state.head, em_state.usecnt, _MAX_BLKS);
+}
+
+#ifdef EMDEBUG
+void
+em_dump(void)
+{
+  uint32_t i, j, cnt=0;
+  uint8_t map, m;
+
+  for (i=0; i<16 && cnt<em_state.usecnt; i++) {
+    map = em_state.use_map[i];
+    for (j=0; j<4; j++) {
+      m = map & _use_map_mask[j];
+      if (m == 0) {
+        printf("o");
+      }
+      else {
+        if (m == _use_map_used[j]) printf(".");
+        else if (m == _use_map_term[j]) printf("*");
+        else                            printf("?");
+        cnt++;
+        if (cnt >= em_state.usecnt) {
+          break;
+        }
+      }
+    }
+  }
+  puts("");
+}
+#endif
