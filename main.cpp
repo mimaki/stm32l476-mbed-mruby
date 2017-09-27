@@ -1,8 +1,12 @@
 #include "mbed.h"
 #include "mruby.h"
 #include "mruby/proc.h"
+#include "mruby/class.h"
+#include "mruby/variable.h"
 #include <stdio.h>
 #include "em_malloc.h"
+
+#include "mbedapi.h"
 
 DigitalOut led1(LED1);
 
@@ -34,6 +38,33 @@ extern "C" {
 // printf("Object#puts() ... \n");
     mrb_get_args(mrb, "z", &s);
     puts(s);
+    return self;
+  }
+
+  static mrb_value mrb_dio_init(mrb_state *mrb, mrb_value self)
+  {
+    mrb_int pin;
+    mrb_get_args(mrb, "i", &pin);
+    mrb_iv_set(mrb, self, mrb_intern_lit(mrb, "@pin"), mrb_fixnum_value(pin));
+    return self;
+  }
+
+  static mrb_value mrb_dio_write(mrb_state *mrb, mrb_value self)
+  {
+    mrb_int v;
+    mrb_value vpin;
+    mrb_get_args(mrb, "i", &v);
+    vpin = mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@pin"));
+    mbedDigitalWrite(mrb_fixnum(vpin), v);
+    return mrb_nil_value();
+  }
+
+  static mrb_value mrb_delay(mrb_state *mrb, mrb_value self)
+  {
+    mrb_int t;
+    mrb_get_args(mrb, "i", &t);
+    mbedDelay(t);
+    return mrb_nil_value();
   }
 }
 
@@ -148,7 +179,7 @@ wait(10);
 
   for (i=0; i<4; i++) {
     led1 = !led1;
-    wait(1);
+    mbedDelay(1000);
   }
 
 printf("mrb_open() ... ");
@@ -158,7 +189,7 @@ em_show_status();
 
   for (i=0; i<20; i++) {
     led1 = !led1;
-    wait(0.5);
+    mbedDelay(500);
   }
 
 printf("mrb_full_gc() ... ");
@@ -169,11 +200,21 @@ em_show_status();
 printf("mrb_define_method Object#puts ... ");
 mrb_define_method(mrb, mrb->object_class, "puts", mrb_puts, MRB_ARGS_REQ(1));
 printf("done.\n");
+printf("mrb_define_method Object#delay ... ");
+mrb_define_method(mrb, mrb->object_class, "delay", mrb_delay, MRB_ARGS_REQ(1));
+printf("done.\n");
+printf("mrb_define_class DigitalIO ... ");
+{
+  struct RClass *dio = mrb_define_class(mrb, "DigitalIO", mrb->object_class);
+  mrb_define_method(mrb, dio, "initialize", mrb_dio_init,   MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, dio, "write",      mrb_dio_write,  MRB_ARGS_REQ(1));
+}
+printf("done.\n");
 em_show_status();
 
   for (i=0; i<40; i++) {
     led1 = !led1;
-    wait(0.25);
+    mbedDelay(250);
   }
 
 printf("mrb_load_irep() ... ");
@@ -185,7 +226,7 @@ em_show_status();
 
   for (i=0; i<100; i++) {
     led1 = !led1;
-    wait(0.1);
+    mbedDelay(100);
   }
 
 printf("mrb_close() ... ");
@@ -195,6 +236,6 @@ em_show_status();
 
   while (true) {
     led1 = !led1;
-    wait(0.05);
+    mbedDelay(50);
   }
 }
