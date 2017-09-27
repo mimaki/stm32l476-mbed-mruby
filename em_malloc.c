@@ -62,7 +62,9 @@ em_set_used(uint32_t head, uint32_t blks)
     }
     em_state.head = idx;
     if (idx == _MAX_BLKS) {
+#ifdef EMDEBUG
       puts("em_set_used: Out of memory!");
+#endif
     }
   }
 }
@@ -117,7 +119,6 @@ void*
 em_search_free(uint32_t blks)
 {
   uint32_t head = em_state.head;
-// printf("em_search_free(%d) : head=0x%08lx\n", blks, head);
 
   if (head >= _MAX_BLKS) {
 #ifdef EMDEBUG
@@ -180,8 +181,9 @@ em_set_free(uint32_t blkidx)
       break;  /* Found terminate */
     }
     if ((sts & msk) == 0) {
-      // Logical error
-puts("em_set_free: Logical Error!");
+#ifdef EMDEBUG
+      puts("em_set_free: Internal Error!");
+#endif
     }
 
     mapblk++;
@@ -223,8 +225,9 @@ em_get_used_blocks(void *p)
     msk = _use_map_mask[mapblk];
     sts = em_state.use_map[mapidx] & msk;
     if (sts == 0) {
-      // logical error
-puts("em_get_used_blocks: Logical Error!");
+#ifdef EMDEBUG
+      puts("em_get_used_blocks: Internal Error!");
+#endif
     }
     blks++;
     if (sts == msk) {
@@ -301,8 +304,9 @@ em_realloc(void *p, size_t len)
     memcpy(exp, p, _BLK_SIZE * blks);
   }
   else {
-    // no memory
+#ifdef EMDEBUG
     puts("em_realloc: Out of memory!");
+#endif
   }
   em_free(p);
 #ifdef EMDEBUG
@@ -323,7 +327,9 @@ em_mallocf(mrb_state *mrb, void *p, size_t len, void *ud)
 void
 em_show_status(void)
 {
+// #ifdef EMDEBUG
   printf("head=%08lx, use=%d/%d\n", em_state.head, em_state.usecnt, _MAX_BLKS);
+// #endif
 }
 
 #ifdef EMDEBUG

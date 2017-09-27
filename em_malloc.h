@@ -1,6 +1,8 @@
 #ifndef _EM_MALLOC_H
 #define _EM_MALLOC_H
 
+// #define EMDEBUG  /* for debug */
+
 /* Heap address and area size */
 #define _HEAP_HEAD  0x20000000
 #define _HEAP_SIZE  0x00018000  /* 96kB */

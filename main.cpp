@@ -31,7 +31,7 @@ extern "C" {
   static mrb_value mrb_puts(mrb_state *mrb, mrb_value self)
   {
     char *s;
-printf("Object#__puts() ... \n");
+// printf("Object#puts() ... \n");
     mrb_get_args(mrb, "z", &s);
     puts(s);
   }
@@ -166,8 +166,8 @@ printf("mrb_full_gc() ... ");
 printf("done.\n");
 em_show_status();
 
-printf("mrb_define_method Object#__puts ... ");
-mrb_define_method(mrb, mrb->object_class, "__puts", mrb_puts, MRB_ARGS_REQ(1));
+printf("mrb_define_method Object#puts ... ");
+mrb_define_method(mrb, mrb->object_class, "puts", mrb_puts, MRB_ARGS_REQ(1));
 printf("done.\n");
 em_show_status();
 
