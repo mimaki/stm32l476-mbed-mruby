@@ -1,0 +1,50 @@
+--- mbed-os/targets/TARGET_STM/TARGET_STM32L4/TARGET_STM32L476xG/device/TOOLCHAIN_GCC_ARM/STM32L476XX.ld	2018-08-07 14:43:59.000000000 +0900
++++ ../../stm32l476-mbed-mruby/mbed-os/targets/TARGET_STM/TARGET_STM32L4/TARGET_STM32L476xG/device/TOOLCHAIN_GCC_ARM/STM32L476XX.ld	2018-02-08 17:36:28.000000000 +0900
+@@ -120,7 +120,7 @@ SECTIONS
+         __data_end__ = .;
+         _edata = .;
+ 
+-    } > SRAM1
++    } > SRAM2   /* SRAM1 */
+ 
+     .bss :
+     {
+@@ -132,14 +132,15 @@ SECTIONS
+         . = ALIGN(4);
+         __bss_end__ = .;
+         _ebss = .;
+-    } > SRAM1
++    } > SRAM2   /* SRAM1 */
+ 
+     .heap (COPY):
+     {
+         __end__ = .;
+         end = __end__;
+         *(.heap*)
+-        __HeapLimit = .;
++/*        __HeapLimit = .;  */
++        __HeapLimit = 0x20018000;
+     } > SRAM1
+ 
+     /* .stack_dummy section doesn't contains any symbols. It is only
+@@ -148,15 +149,17 @@ SECTIONS
+     .stack_dummy (COPY):
+     {
+         *(.stack*)
+-    } > SRAM1
++    } > SRAM2   /* SRAM1 */
+ 
+     /* Set stack top to end of RAM, and stack limit move down by
+      * size of stack_dummy section */
+-    __StackTop = ORIGIN(SRAM1) + LENGTH(SRAM1);
++/*    __StackTop = ORIGIN(SRAM1) + LENGTH(SRAM1);   */
++    __StackTop = ORIGIN(SRAM2) + LENGTH(SRAM2);
+     _estack = __StackTop;
+     __StackLimit = __StackTop - SIZEOF(.stack_dummy);
+     PROVIDE(__stack = __StackTop);
+ 
+     /* Check if data + heap + stack exceeds RAM limit */
+-    ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
++/*    ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")   */
++    ASSERT(__StackLimit >= _ebss, "region RAM overflowed with stack")
+ }
