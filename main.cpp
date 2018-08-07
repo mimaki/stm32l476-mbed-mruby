@@ -26,7 +26,7 @@ extern "C" {
   {
     int i;
     puts(msg);
-    for (i=0; i>6; i++) {
+    for (i=0; i<6; i++) {
       led1 = !led1;
       wait(0.5);
     }
