@@ -1,87 +1,230 @@
-# Getting started with Blinky on mbed OS
+# mruby on BUCLEO-L476RG (stm32l476-mbed-mruby)
 
-This guide reviews the steps required to get Blinky working on an mbed OS platform.
+STMicroelectoronics製のマイコン評価ボード[NUCLEO-L476RG](https://www.st.com/content/st_com/ja/products/evaluation-tools/product-evaluation-tools/mcu-eval-tools/stm32-mcu-eval-tools/stm32-mcu-nucleo/nucleo-l476rg.html)に[mruby](https://github.com/mruby/mruby)をポーティングしました。
 
-Please install [mbed CLI](https://github.com/ARMmbed/mbed-cli#installing-mbed-cli).
+mrubyは、人気の開発言語「[Ruby](https://www.ruby-lang.org)」を軽量化したプログラミング言語で、組込みシステムや様々なソフトウェアに組み込むことができる高機能なプログラミング言語です。
 
-## Import the example application
+NUCLEO-L476RGは、ARM Cortex-M4 80MHz, 1MB FLASH, 128KB SRAMを搭載した評価ボードで、mbed OSにも対応しています。
 
-From the command-line, import the example:
+(カスタマイズなしの)mrubyは200KB程度のRAMを必要としますが、stm32l476-mbed-mrubyでは、下記を行うことで128KB(実際は16KB+96KB)のSRAMでmruby-1.3.0を動作させています。
+
+- mrubyを省メモリ向けにカスタマイズ
+- メモリ管理を自作
+
+マイコンボードはNUCLEO-L476RGを使用していますが、SRAMが128KB以上、FLASHが256KB以上あるマイコンであればmrubyを動作させることは可能です。
+
+128KBのRAMで本格的なアプリケーションを動作させることは流石に難しいですが、安価で入手可能なマイコンボードでも動作する軽量版Ruby「mruby」を是非体験してみて下さい。
+
+
+# 導入手順
+
+## 1. 準備するもの
+
+- NUCLEO-L476RG マイコンボード
+- Windows PC / Mac
+- USB A-miniB ケーブル
+
+
+----
+
+## 2. ビルド環境の構築
+
+### 2.1. C言語開発環境のインストール
+
+#### Windowsの場合
+
+Windows環境でのmrubyのビルドには、Microsoft Visual Studio(VC++)、MinGW(gcc)、Cygwin(gcc)等が利用可能ですが、ここでは[MinGW](http://www.mingw.org/)を使用する前提で説明していきます。  
+[MinGWのダウンロードサイト](https://sourceforge.net/projects/mingw/files/Installer/)から**mingw-get-setup.exe**をダウンロードして実行します。（インストール時の設定はデフォルトのままでOKです）
+
+**MinGW Installation Manager**の画面が表示されたら
+- mingw32-base
+- mingw32-gcc-g++
+- msys-base
+
+の3項目を選択して、**Installation**メニューの**Apply Changes**を実行して下さい。  
+インストール完了後、以下のファイルのショートカットをデスクトップに作成します。
+```
+C:¥MinGW¥msys¥1.0¥msys.bat
+```
+**注意**  
+以下、Windows環境でのコマンド実行は、このmsys.batを実行して表示されるコマンド画面から実行するものとします。
+
+
+#### Macの場合  
+XcodeのCommand Line Toolsをインストールして下さい。
+
+
+### 2.2. Rubyのインストール
+
+mrubyをビルドするためには、本家Rubyが必要です。  
+
+#### Windowsの場合  
+[RubyInstaller](https://rubyinstaller.org/)より、2.0.0以降のバージョンのインストーラをダウンロードして、Rubyをインストールして下さい。  
+
+#### Macの場合  
+プリインストールされているRuby、またはrbenvなどでインストールされたRubyがそのまま利用できます。
+
+
+### 2.3. GNU Bisonのインストール
+
+#### Windowsの場合  
+[Bison for Windows](http://gnuwin32.sourceforge.net/packages/bison.htm)より、**Complete package, except sources**の**Setup**をダウンロードして、Bisonをインストールして下さい。  
+インストール先のフォルダ名は **C:¥GnuWin32** に指定するものとします。  
+インストール実行後、環境変数 **PATH** に以下を追加して下さい。
+```
+C:¥GnuWin32¥bin
+```
+
+#### Macの場合  
+**Homebrew**を使用して、以下のコマンドでBisonをインストールします。
+```
+$ brew install bison
+```
+
+以下のコマンドを実行し、上記それぞれにパスが通っていることを確認します。
+
+
+### 2.4. mbed CLIのセットアップ
+
+**momo-mruby** では mbed (GR-PEACH) 用にクロスコンパイルするために [mbed CLI](https://github.com/ARMmbed/mbed-cli) を使用します。  
+mbed CLIのセットアップ手順を以下に示します。
+
+#### 2.4.1. Python 2.7  
+mbed CLI を利用するためには Python 2.7 が必要です。(Python 3は利用できません)  
+[Python 2.7](https://www.python.org/downloads/release/python-2712/) をセットアップしてください。  
+※ momo-mruby上ではPythonは動作しません。
+
+#### 2.4.2. Git  
+[Git](https://git-scm.com/) 1.9.5 以降をインストールしてください。
+
+#### 2.4.3. Mercurial  
+[Mercurial](https://www.mercurial-scm.org/) 2.2.2 以降をインストールして下さい。
+
+#### 2.4.4. GNU ARM Embedded Toolchain  
+[GNU ARM Embedded Toolchain 5.4](https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q2-update) をインストールしてください。
+
+以下のコマンドを実行し、上記それぞれにパスが通っていることを確認します。
+
+**Python**
+```
+$ python --version
+Python 2.7.xx
+```
+**Git**
+```
+$ git --version
+git version 2.x.xxxxxx
+```
+**Mercurial**
+```
+$ hg --version
+Mercurial - 分散構成管理ツール(バージョン 4.1.2)
+(詳細は https://mercurial-scm.org を参照)
+
+Copyright (C) 2005-2017 Matt Mackall and others
+本製品はフリーソフトウェアです。
+頒布条件に関しては同梱されるライセンス条項をお読みください。
+市場適合性や特定用途への可否を含め、 本製品は無保証です。
+```
+**GNU ARM Toolchain**
+```
+$ arm-none-eabi-gcc --version
+arm-none-eabi-gcc (GNU Tools for ARM Embedded Processors) 5.4.1 20160609 
+...
+```
+
+コマンド実行がうまくいかない（パスが通っていない）場合は、パスを追加して下さい。
+
+##### Windowsの場合  
+システムのプロパティ - 詳細設定 - 環境変数から、環境変数 **PATH** に以下を追加します。
+- C:¥Python27
+- C:¥Python27¥Scripts
+- C:¥Program Files¥Git¥cmd
+- C:¥Program Files (x86)¥GNU Tools ARM Embedded¥5.4 2016q2¥bin  
+※ 32bit版Windowsの場合は C:¥Program Files¥GNU Tools ARM Embedded¥5.4 2016q2¥bin
+
+##### Macの場合  
+```
+$ export PATH=$PATH:$INSTALL_DIR/gcc-arm-none-eabi-5_4-2016q2/bin
+```
+
+※ **$INSTALL_DIR**には、GNU ARM Toolchainsをインストールしたディレクトリを指定して下さい。
+
+
+#### 2.4.5. mbed CLI  
+上記1〜4のインストールが完了したら、mbed CLIをインストールします。
+```
+$ pip install mbed-cli
+```
+
+
+----
+
+## 3. ソースコードの取得とビルド
+
+以下のコマンドを実行して、 **stm32l476-mbed-mruby** のソースコードを取得します。
 
 ```
-mbed import mbed-os-example-blinky
-cd mbed-os-example-blinky
+$ cd $WORKING_DIR
+$ git clone https://github.com/mimaki/stm32l476-mbed-mruby.git --recursive
+$ cd stm32l476-mbed-mruby
+$ make first
 ```
 
-### Now compile
+* **$WORKIND_DIR**には、任意のディレクトリを指定して下さい。
+* ```make first```は初回のみ実行して下さい。
 
-Invoke `mbed compile`, and specify the name of your platform and your favorite toolchain (`GCC_ARM`, `ARM`, `IAR`). For example, for the ARM Compiler 5:
-
-```
-mbed compile -m K64F -t ARM
-```
-
-Your PC may take a few minutes to compile your code. At the end, you see the following result:
+### ソースコードのビルド
 
 ```
-[snip]
-+----------------------------+-------+-------+------+
-| Module                     | .text | .data | .bss |
-+----------------------------+-------+-------+------+
-| Misc                       | 13939 |    24 | 1372 |
-| core/hal                   | 16993 |    96 |  296 |
-| core/rtos                  |  7384 |    92 | 4204 |
-| features/FEATURE_IPV4      |    80 |     0 |  176 |
-| frameworks/greentea-client |  1830 |    60 |   44 |
-| frameworks/utest           |  2392 |   512 |  292 |
-| Subtotals                  | 42618 |   784 | 6384 |
-+----------------------------+-------+-------+------+
-Allocated Heap: unknown
-Allocated Stack: unknown
-Total Static RAM memory (data + bss): 7168 bytes
-Total RAM memory (data + bss + heap + stack): 7168 bytes
-Total Flash memory (text + data + misc): 43402 bytes
-Image: .\.build\K64F\ARM\mbed-os-example-blinky.bin
+$ make
 ```
 
-### Program your board
+---
 
-1. Connect your mbed device to the computer over USB.
-1. Copy the binary file to the mbed device.
-1. Press the reset button to start the program.
+## 4. マイコンボードへの書き込み
 
-The LED on your platform turns on and off.
+NUCLEO-L476RGをUSBケーブルでPCに接続すると ```NODE_L476RG``` ドライブとして認識されます。
 
-## Export the project to Keil MDK, and debug your application
-
-From the command-line, run the following command:
+以下のファイルを ```NODE_L476RG``` ドライブのルートディレクトリにコピーすることで、```NUCLEO-L476RG``` のファームウェアが更新・再起動されます。
 
 ```
-mbed export -m K64F -i uvision
+BUILD/NUCLEO_L476RG/GCC_ARM/stm32l476-mbed-mruby.bin
 ```
 
-To debug the application:
 
-1. Start uVision.
-1. Import the uVision project generated earlier.
-1. Compile your application, and generate an `.axf` file.
-1. Make sure uVision is configured to debug over CMSIS-DAP (From the Project menu > Options for Target '...' > Debug tab > Use CMSIS-DAP Debugger).
-1. Set breakpoints, and start a debug session.
+## 5. 動作確認
 
-![Image of uVision](img/uvision.png)
+サンプルアプリケーション ([app.rb](https://github.com/mimaki/stm32l476-mbed-mruby/blob/master/app.rb)) では、putsによるコンソール出力とDigiralIO#writeによるLED制御が行われます。
 
-## Troubleshooting
+コンソール出力を確認するためには、VCP(Virtual COM Port)ドライバとターミナルソフトをインストールする必要があります。
 
-1. Make sure `mbed-cli` is working correctly and its version is `>1.0.0`
+### 5.1. VCPドライバのインストール
 
- ```
- mbed --version
- ```
+#### Windowsの場合
 
- If not, you can update it:
+STmicroelectronicsの[ダウンロードサイト](https://www.st.com/ja/development-tools/stsw-stm32102.html)からVCPドライバをダウンロード・インストールして下さい。
 
- ```
- pip install mbed-cli --upgrade
- ```
+#### Macの場合
 
-2. If using Keil MDK, make sure you have a license installed. [MDK-Lite](http://www.keil.com/arm/mdk.asp) has a 32 KB restriction on code size.
+FTDIが提供している[VCP Driver](http://www.ftdichip.com/Drivers/VCP.htm)をダウンロード・インストールして下さい。
+
+
+### 5.2. ターミナルソフトのインストール
+
+putsによるコンソール出力を確認するためには、CoolTermなどのターミナルソフトを使用します。
+ターミナルソフトで下記を設定し、NUCLEO-L476RGをUSB接続してCOMポートに接続すると、コンソール出力が確認できます。
+
+|項目|値|
+|:-:|:--|
+|Port|Windowsの場合: COMx<br />Macの場合: usbmodemXXXX<br />(x, XXXXは任意の数字)|
+|Baudrate|9600|
+|Data bits|8|
+|Parity|none|
+|Stop bits|1|
+|Flow control|none|
+
+
+# ライセンス
+
+本ソフトウェアはMITライセンスのもとで公開しています。[LICENSE](https://github.com/mimaki/stm32l476-mbed-mruby/blob/master/LICENSE)を参照して下さい。
