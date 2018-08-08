@@ -1,12 +1,12 @@
-# mruby on BUCLEO-L476RG (stm32l476-mbed-mruby)
+# mruby on NUCLEO-L476RG (stm32l476-mbed-mruby)
 
 STMicroelectoronics製のマイコン評価ボード[NUCLEO-L476RG](https://www.st.com/content/st_com/ja/products/evaluation-tools/product-evaluation-tools/mcu-eval-tools/stm32-mcu-eval-tools/stm32-mcu-nucleo/nucleo-l476rg.html)に[mruby](https://github.com/mruby/mruby)をポーティングしました。
 
 mrubyは、人気の開発言語「[Ruby](https://www.ruby-lang.org)」を軽量化したプログラミング言語で、組込みシステムや様々なソフトウェアに組み込むことができる高機能なプログラミング言語です。
 
-NUCLEO-L476RGは、ARM Cortex-M4 80MHz, 1MB FLASH, 128KB SRAMを搭載した評価ボードで、mbed OSにも対応しています。
+[NUCLEO-L476RG](https://www.st.com/content/st_com/ja/products/evaluation-tools/product-evaluation-tools/mcu-eval-tools/stm32-mcu-eval-tools/stm32-mcu-nucleo/nucleo-l476rg.html)は、ARM Cortex-M4 80MHz, 1MB FLASH, 128KB SRAMを搭載したマイコン評価ボードで、mbed OSにも対応しています。
 
-(カスタマイズなしの)mrubyは200KB程度のRAMを必要としますが、stm32l476-mbed-mrubyでは、下記を行うことで128KB(実際は16KB+96KB)のSRAMでmruby-1.3.0を動作させています。
+(カスタマイズなしの)mrubyは200KB程度のRAMを必要としますが、stm32l476-mbed-mrubyでは、下記を行うことで128KB(実際は16KB+96KB)のSRAMでmruby-1.3.0[^1]を動作させています。
 
 - mrubyを省メモリ向けにカスタマイズ
 - メモリ管理を自作
@@ -14,6 +14,8 @@ NUCLEO-L476RGは、ARM Cortex-M4 80MHz, 1MB FLASH, 128KB SRAMを搭載した評�
 マイコンボードはNUCLEO-L476RGを使用していますが、SRAMが128KB以上、FLASHが256KB以上あるマイコンであればmrubyを動作させることは可能です。
 
 128KBのRAMで本格的なアプリケーションを動作させることは流石に難しいですが、安価で入手可能なマイコンボードでも動作する軽量版Ruby「mruby」を是非体験してみて下さい。
+
+[^1]: 公開時点のmrubyの最新バージョンは1.4.1ですが、1.3.0の時代にポーティングを実施したため、少し古いmrubyを使用しています。
 
 
 # 導入手順
@@ -224,7 +226,31 @@ putsによるコンソール出力を確認するためには、CoolTermなど�
 |Stop bits|1|
 |Flow control|none|
 
+### サンプルアプリケーション ([app.rb](https://github.com/mimaki/stm32l476-mbed-mruby/blob/master/app.rb)) の出力例
 
+```
+mruby!
+Hello, mruby!
+Hello, Hello, mruby!
+Hello, Hello, Hello, mruby!
+Hello, Hello, Hello, Hello, mruby!
+Hello, Hello, Hello, Hello, Hello, mruby!
+Hello, Hello, Hello, Hello, Hello, Hello, mruby!
+Hello, Hello, Hello, Hello, Hello, Hello, Hello, mruby!
+Hello, Hello, Hello, Hello, Hello, Hello, Hello, Hello, mruby!
+Hello, Hello, Hello, Hello, Hello, Hello, Hello, Hello, Hello, mruby!
+2
+42.195
+mrubymruby
+[1, 4, 7, 1, 4, 7]
+```
+
+### mrubyアプリケーションの更新
+
+app.rbを変更した後、```make```を実行して、ビルド結果の stm32l476-mbed-mruby.bin を NUCLEO-L476RG に書き込むことで、mrubyアプリケーションを更新することができます。
+
+
+---
 # ライセンス
 
 本ソフトウェアはMITライセンスのもとで公開しています。[LICENSE](https://github.com/mimaki/stm32l476-mbed-mruby/blob/master/LICENSE)を参照して下さい。
