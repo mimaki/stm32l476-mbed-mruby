@@ -9,6 +9,7 @@ all:
 	mbed compile -m NUCLEO_L476RG -t GCC_ARM
 
 first:
+	mbed deploy
 	patch -u --forward $(LD) < STM32L476XX.ld.patch
 
 clean:
