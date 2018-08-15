@@ -256,7 +256,7 @@ app.rbを変更した後、```make```を実行して、ビルド結果の stm32l
 本ソフトウェアはMITライセンスのもとで公開しています。[LICENSE](https://github.com/mimaki/stm32l476-mbed-mruby/blob/master/LICENSE)を参照して下さい。
 
 # mrubyに関連するサイト
-[mruby.org](http://www.mruby.org)
+[mrubyコミュニティー](http://www.mruby.org)
 
 [特定非営利活動法人mrubyフォーラム](http://forum.mruby.org)
 
